@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Log de cambios · {{ pac.nombre }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="fas fa-history me-2 text-secondary"></i>Historial de cambios</h5>
+    <small class="text-muted">{{ pac.nombre }} — {{ logs|length }} registros</small>
+  </div>
+  <a href="{{ url_for('exportar_excel', pid=pac.id) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-file-excel me-1"></i>Exportar con log
+  </a>
+</div>
+
+<!-- Leyenda -->
+<div class="d-flex gap-3 mb-3 small">
+  <span><span class="badge" style="background:#d4edda;color:#155724">Sistema</span> Cambios automáticos</span>
+  <span><span class="badge" style="background:#fff3cd;color:#856404">Usuario</span> Ediciones manuales</span>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0" id="tbl-log">
+      <thead class="table-dark">
+        <tr>
+          <th>Fecha/Hora</th>
+          <th>Tipo</th>
+          <th>Entidad</th>
+          <th>Campo</th>
+          <th>Valor anterior</th>
+          <th>Valor nuevo</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for l in logs %}
+      <tr class="{{ 'log-sistema' if l.usuario=='sistema' else 'log-usuario' }}">
+        <td><small>{{ l.fecha.strftime('%d/%m/%Y %H:%M') if l.fecha else '' }}</small></td>
+        <td>
+          <span class="badge {{ 'bg-secondary' if l.usuario=='sistema' else 'bg-warning text-dark' }}">
+            <i class="fas {{ 'fa-robot' if l.usuario=='sistema' else 'fa-user' }} me-1"></i>{{ l.usuario }}
+          </span>
+        </td>
+        <td><span class="badge bg-info text-dark">{{ l.entidad }}</span></td>
+        <td><small class="text-muted">{{ l.campo }}</small></td>
+        <td>
+          {% if l.valor_anterior %}
+            <small class="text-danger text-decoration-line-through">{{ l.valor_anterior[:60] }}{% if l.valor_anterior|length > 60 %}...{% endif %}</small>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if l.valor_nuevo %}
+            <small class="text-success fw-semibold">{{ l.valor_nuevo[:60] }}{% if l.valor_nuevo|length > 60 %}...{% endif %}</small>
+          {% else %}—{% endif %}
+        </td>
+        <td><small>{{ l.descripcion[:80] if l.descripcion else '' }}</small></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+$('#tbl-log').DataTable({
+  language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-AR.json'},
+  order:[[0,'desc']], pageLength:25,
+  dom:'<"d-flex justify-content-between mb-2"fl>tp'
+});
+</script>
+{% endblock %}

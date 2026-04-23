@@ -1,0 +1,267 @@
+{% extends 'base.html' %} {% block title %}{{ pac.nombre }} · MedControl{%
+endblock %} {% block content %}
+
+<div class="pac-header mb-3">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <h4 class="mb-1 fw-bold">
+        <i class="fas fa-user-injured me-2"></i>{{ pac.nombre }}
+      </h4>
+      <small class="opacity-75">DNI: {{ pac.dni }}</small><br />
+      <small class="opacity-75"
+        >Ingreso: {{ pac.fecha_ingreso }} &nbsp;→&nbsp; Egreso: {{
+        pac.fecha_egreso or '—' }}</small
+      >
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a
+        href="{{ url_for('cargar_datos', pid=pac.id) }}"
+        class="btn btn-primary btn-sm"
+      >
+        <i class="fas fa-upload me-1"></i>Cargar datos
+      </a>
+      <button
+        type="button"
+        class="btn btn-outline-light btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#modalEditarPaciente"
+      >
+        <i class="fas fa-user-pen me-1"></i>Editar paciente
+      </button>
+      <a
+        href="{{ url_for('administrados', pid=pac.id) }}"
+        class="btn btn-light btn-sm"
+      >
+        <i class="fas fa-syringe me-1"></i>Administrados
+      </a>
+      <a
+        href="{{ url_for('control', pid=pac.id) }}"
+        class="btn btn-warning btn-sm"
+      >
+        <i class="fas fa-chart-bar me-1"></i>Control
+      </a>
+      <a
+        href="{{ url_for('exportar_excel', pid=pac.id) }}"
+        class="btn btn-success btn-sm"
+      >
+        <i class="fas fa-file-excel me-1"></i>Excel
+      </a>
+      <a
+        href="{{ url_for('exportar_pdf_comparacion', pid=pac.id) }}"
+        class="btn btn-outline-light btn-sm"
+      >
+        <i class="fas fa-file-pdf me-1"></i>PDF comparación
+      </a>
+      <form
+        method="POST"
+        action="{{ url_for('eliminar_paciente', pid=pac.id) }}"
+        onsubmit="
+          return confirm(
+            '¿Seguro que querés eliminar este paciente y todos sus datos? Esta acción no se puede deshacer.',
+          );
+        "
+        class="d-inline"
+      >
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+          <i class="fas fa-trash me-1"></i>Eliminar
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Stats rápidos -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card stat-card" style="background: #d4edda">
+      <div class="stat-num text-success">{{ st.ok }}</div>
+      <div class="stat-lbl">OK</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card" style="background: #f8d7da">
+      <div class="stat-num text-danger">{{ st.sin_mapeo }}</div>
+      <div class="stat-lbl">Sin mapeo</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card" style="background: #fff3cd">
+      <div class="stat-num text-warning">{{ st.revisar }}</div>
+      <div class="stat-lbl">Revisar</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card" style="background: #cfe2ff">
+      <div class="stat-num text-primary">{{ st.total_adm }}</div>
+      <div class="stat-lbl">Total adm.</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card">
+      <div class="stat-num text-secondary">{{ st.total_ind }}</div>
+      <div class="stat-lbl">Indicados</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card">
+      <div class="stat-num text-secondary">{{ st.total_fact }}</div>
+      <div class="stat-lbl">Facturados</div>
+    </div>
+  </div>
+</div>
+
+<!-- Accesos rápidos -->
+<div class="row g-3">
+  <!-- Cargar datos - destacado -->
+  <div class="col-12">
+    <div class="card border-primary" style="background: #f0f7ff">
+      <div class="card-body d-flex align-items-center gap-4">
+        <i class="fas fa-upload fa-2x text-primary"></i>
+        <div class="flex-fill">
+          <h6 class="mb-1 fw-bold">Cargar datos desde Excel</h6>
+          <p class="mb-0 text-muted small">
+            Subí la planilla de administrados y la liquidación de facturados
+            para hacer el cruce automático.
+          </p>
+        </div>
+        <a
+          href="{{ url_for('cargar_datos', pid=pac.id) }}"
+          class="btn btn-primary"
+        >
+          <i class="fas fa-upload me-1"></i>Cargar datos
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <i class="fas fa-syringe fa-2x text-primary mb-2"></i>
+        <h6>Medicamentos Administrados</h6>
+        <p class="text-muted small">
+          Ver, corregir y auditar los medicamentos administrados por enfermería
+        </p>
+        <a
+          href="{{ url_for('administrados', pid=pac.id) }}"
+          class="btn btn-primary btn-sm"
+        >
+          <i class="fas fa-arrow-right me-1"></i>Ir a Administrados
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <i class="fas fa-stethoscope fa-2x text-info mb-2"></i>
+        <h6>Indicaciones Médicas</h6>
+        <p class="text-muted small">
+          Registro de indicaciones farmacológicas del médico tratante
+        </p>
+        <a
+          href="{{ url_for('indicados', pid=pac.id) }}"
+          class="btn btn-info btn-sm text-white"
+        >
+          <i class="fas fa-arrow-right me-1"></i>Ir a Indicados
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <i class="fas fa-file-invoice-dollar fa-2x text-secondary mb-2"></i>
+        <h6>Medicamentos Facturados</h6>
+        <p class="text-muted small">
+          Liquidación del CEMIC: medicamentos y material descartable facturados
+        </p>
+        <a
+          href="{{ url_for('facturados', pid=pac.id) }}"
+          class="btn btn-secondary btn-sm"
+        >
+          <i class="fas fa-arrow-right me-1"></i>Ir a Facturados
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  class="modal fade"
+  id="modalEditarPaciente"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('editar_paciente', pid=pac.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-user-pen me-2"></i>Editar paciente
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Nombre *</label>
+              <input
+                type="text"
+                name="nombre"
+                class="form-control"
+                value="{{ pac.nombre }}"
+                required
+              />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">DNI</label>
+              <input
+                type="text"
+                name="dni"
+                class="form-control"
+                value="{{ pac.dni or '' }}"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha ingreso</label>
+              <input
+                type="text"
+                name="fecha_ingreso"
+                class="form-control"
+                value="{{ pac.fecha_ingreso or '' }}"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha egreso</label>
+              <input
+                type="text"
+                name="fecha_egreso"
+                class="form-control"
+                value="{{ pac.fecha_egreso or '' }}"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-bs-dismiss="modal"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Guardar cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

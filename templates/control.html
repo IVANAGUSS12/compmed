@@ -1,0 +1,208 @@
+{% extends 'base.html' %} {% block title %}Control · {{ pac.nombre }}{% endblock
+%} {% block content %}
+
+<div class="pac-header mb-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h5 class="mb-0 fw-bold">
+        <i class="fas fa-chart-bar me-2"></i>Control Cruzado
+      </h5>
+      <small class="opacity-75">{{ pac.nombre }} — {{ pac.hc }}</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a
+        href="{{ url_for('exportar_pdf_comparacion', pid=pac.id) }}"
+        class="btn btn-danger btn-sm"
+      >
+        <i class="fas fa-file-pdf me-1"></i>PDF comparación
+      </a>
+      <a
+        href="{{ url_for('exportar_excel', pid=pac.id) }}"
+        class="btn btn-warning btn-sm"
+      >
+        <i class="fas fa-file-excel me-1"></i>Exportar Excel
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Stats semáforo -->
+<div class="row g-2 mb-4">
+  <div class="col">
+    <div class="card text-center py-2" style="background: #d4edda">
+      <div class="fw-bold fs-4 text-success">{{ st.ok }}</div>
+      <div class="small text-success">✅ OK</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card text-center py-2" style="background: #f8d7da">
+      <div class="fw-bold fs-4 text-danger">{{ st.sin_mapeo }}</div>
+      <div class="small text-danger">❌ Sin mapeo</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card text-center py-2" style="background: #fff3cd">
+      <div class="fw-bold fs-4 text-warning">{{ st.revisar }}</div>
+      <div class="small">⚠️ Revisar</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card text-center py-2" style="background: #ffe5d0">
+      <div class="fw-bold fs-4" style="color: #fd7e14">
+        {{ st.no_facturado }}
+      </div>
+      <div class="small" style="color: #fd7e14">🔶 No facturado</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card text-center py-2" style="background: #cff4fc">
+      <div class="fw-bold fs-4 text-info">{{ st.pendiente }}</div>
+      <div class="small text-info">🔵 Pendiente</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card text-center py-2">
+      <div class="fw-bold fs-4 text-secondary">{{ st.total_adm }}</div>
+      <div class="small text-muted">Total adm.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de control -->
+<div class="card mb-4">
+  <div
+    class="card-header bg-white fw-bold d-flex justify-content-between align-items-center"
+  >
+    <span><i class="fas fa-table me-2"></i>Administrados vs Facturados</span>
+    <div class="d-flex gap-2">
+      <select
+        id="f-estado"
+        class="form-select form-select-sm w-auto"
+        onchange="filtrarCtrl()"
+      >
+        <option value="">Todos</option>
+        <option value="completo">OK Completo</option>
+        <option value="adm_no_fact">Adm. no facturado</option>
+        <option value="sin_mapeo">Sin equivalencia</option>
+        <option value="revisar">Revisar</option>
+        <option value="pendiente">Pendiente</option>
+      </select>
+      <input
+        type="text"
+        id="f-texto"
+        class="form-control form-control-sm"
+        placeholder="Buscar..."
+        style="width: 180px"
+        oninput="filtrarCtrl()"
+      />
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead style="background: #34495e; color: #fff">
+          <tr>
+            <th>Fecha</th>
+            <th>Enfermero</th>
+            <th>Nombre original (comercial)</th>
+            <th>Nombre corregido (facturado)</th>
+            <th>Estado</th>
+            <th>En facturado</th>
+            <th>Obs.</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-ctrl">
+          {% for r in rows %} {% set bg = { 'completo': '#c6efce',
+          'adm_no_fact': '#ffe5d0', 'sin_mapeo': '#f8d7da', 'revisar':
+          '#fff3cd', 'pendiente': '#cff4fc' }.get(r.estado_ctrl, '#ffffff') %}
+          <tr data-estado="{{ r.estado_ctrl }}" style="background:{{ bg }}">
+            <td><small>{{ r.fecha }}</small></td>
+            <td><small>{{ r.hora_enfermero }}</small></td>
+            <td><small class="nombre-orig">{{ r.nombre_original }}</small></td>
+            <td>
+              {% if r.nombre_corregido %}
+              <small class="nombre-corr">{{ r.nombre_corregido }}</small>
+              {% else %}
+              <small class="text-danger">—</small>
+              {% endif %}
+            </td>
+            <td>
+              <span
+                class="badge bg-{{ r.badge }} {% if r.badge=='warning' %}text-dark{% endif %}"
+                >{{ r.label }}</span
+              >
+            </td>
+            <td class="text-center">
+              {% if r.en_facturado %}
+              <i class="fas fa-check text-success"></i>
+              {% else %}
+              <i class="fas fa-times text-danger"></i>
+              {% endif %}
+            </td>
+            <td>
+              <small class="text-muted">{{ r.observacion }}</small>
+              {% if not r.nombre_corregido or r.estado_ctrl in
+              ['sin_mapeo','adm_no_fact'] %}
+              <button
+                class="btn btn-xs btn-outline-primary btn-accion ms-1"
+                onclick="irEditar({{ r.id }})"
+                title="Corregir"
+              >
+                <i class="fas fa-edit"></i>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if fact_sin_adm %}
+<!-- Facturados sin administrado -->
+<div class="card border-warning">
+  <div class="card-header bg-warning fw-bold">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Facturados sin registro de administración ({{ fact_sin_adm|length }})
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-warning">
+          <tr>
+            <th>Fecha</th>
+            <th>Nombre facturado</th>
+            <th>Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in fact_sin_adm %}
+          <tr style="background: #fff9e6">
+            <td>{{ f.fecha }}</td>
+            <td>{{ f.nombre }}</td>
+            <td class="text-center">{{ f.cantidad }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %} {% endblock %} {% block scripts %}
+<script>
+  const PID = {{ pac.id }};
+  function filtrarCtrl(){
+    const e = document.getElementById('f-estado').value;
+    const t = document.getElementById('f-texto').value.toLowerCase();
+    document.querySelectorAll('#tbody-ctrl tr').forEach(tr=>{
+      const ok = (!e||tr.dataset.estado===e) && (!t||tr.textContent.toLowerCase().includes(t));
+      tr.style.display = ok ? '' : 'none';
+    });
+  }
+  function irEditar(id){
+    window.location.href = `/paciente/${PID}/administrados#row-${id}`;
+  }
+</script>
+{% endblock %}

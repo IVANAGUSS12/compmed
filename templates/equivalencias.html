@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Equivalencias · MedControl{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="fas fa-exchange-alt me-2 text-primary"></i>Tabla de equivalencias</h5>
+    <small class="text-muted">Mapeo: nombre comercial administrado → nombre del facturado</small>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevaEq">
+    <i class="fas fa-plus me-1"></i>Nueva equivalencia
+  </button>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <input type="text" id="buscar-eq" class="form-control form-control-sm" placeholder="Buscar en equivalencias..." style="max-width:350px">
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+    <table class="table table-hover mb-0" id="tbl-eq">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Nombre comercial (administrado)</th>
+          <th>Nombre en liquidación (facturado)</th>
+          <th>Nota</th>
+          <th style="width:90px">Activa</th>
+          <th style="width:90px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for e in equivs %}
+      <tr id="eq-{{ e.id }}" {% if not e.activa %}style="opacity:.5"{% endif %}>
+        <td class="text-muted small">{{ e.id }}</td>
+        <td>
+          <span class="eq-tag">{{ e.nombre_comercial }}</span>
+        </td>
+        <td class="fw-semibold text-success">{{ e.nombre_facturado }}</td>
+        <td><small class="text-muted">{{ e.nota or '' }}</small></td>
+        <td class="text-center">
+          <div class="form-check form-switch d-inline-block">
+            <input class="form-check-input" type="checkbox" {% if e.activa %}checked{% endif %}
+              onchange="toggleActiva({{ e.id }}, this.checked)">
+          </div>
+        </td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn btn-outline-warning btn-accion"
+              onclick="editarEq({{ e.id }},'{{ e.nombre_comercial|replace("'","\\'") }}','{{ e.nombre_facturado|replace("'","\\'") }}','{{ (e.nota or '')|replace("'","\\'") }}')"
+              title="Editar"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-outline-danger btn-accion" onclick="eliminarEq({{ e.id }})" title="Eliminar">
+              <i class="fas fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nueva -->
+<div class="modal fade" id="modalNuevaEq" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nueva equivalencia</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nombre comercial (tal como aparece en la planilla de administrados)</label>
+            <input type="text" id="n-com" class="form-control"
+              placeholder="FRIDALIT 100 100 MG F.A.X 1 X 5 ML FADA PHARMA X 1">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold text-primary">Nombre del facturado (en la liquidación del CEMIC)</label>
+            <input type="text" id="n-fact" class="form-control"
+              placeholder="HIDROCORTISONA 100 MG.FCO.AMP.">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nota / aclaración</label>
+            <input type="text" id="n-nota" class="form-control" placeholder="Ej: Hidrocortisona Fada Pharma → nombre genérico">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarNuevaEq()"><i class="fas fa-save me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar -->
+<div class="modal fade" id="modalEditarEq" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar equivalencia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="e-eid">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nombre comercial</label>
+            <input type="text" id="e-com" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold text-primary">Nombre del facturado</label>
+            <input type="text" id="e-fact" class="form-control border-primary">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nota</label>
+            <input type="text" id="e-nota" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" onclick="guardarEdicionEq()"><i class="fas fa-save me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$('#tbl-eq').DataTable({
+  language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-AR.json'},
+  pageLength:30, dom:'<"d-flex justify-content-between mb-2"fl>tp'
+});
+document.getElementById('buscar-eq').addEventListener('input', function(){
+  $('#tbl-eq').DataTable().search(this.value).draw();
+});
+
+function editarEq(id,com,fact,nota){
+  document.getElementById('e-eid').value=id;
+  document.getElementById('e-com').value=com;
+  document.getElementById('e-fact').value=fact;
+  document.getElementById('e-nota').value=nota;
+  new bootstrap.Modal(document.getElementById('modalEditarEq')).show();
+}
+
+async function guardarNuevaEq(){
+  const data={
+    nombre_comercial: document.getElementById('n-com').value.trim(),
+    nombre_facturado: document.getElementById('n-fact').value.trim(),
+    nota: document.getElementById('n-nota').value.trim()
+  };
+  if(!data.nombre_comercial||!data.nombre_facturado){showToast('Completá ambos nombres','warning');return;}
+  const r = await apiCall('/equivalencias/nueva','POST',data);
+  if(r.ok){
+    bootstrap.Modal.getInstance(document.getElementById('modalNuevaEq')).hide();
+    showToast('✅ Equivalencia guardada');
+    setTimeout(()=>location.reload(),900);
+  }
+}
+
+async function guardarEdicionEq(){
+  const id = document.getElementById('e-eid').value;
+  const data={
+    nombre_comercial: document.getElementById('e-com').value.trim(),
+    nombre_facturado: document.getElementById('e-fact').value.trim(),
+    nota: document.getElementById('e-nota').value.trim()
+  };
+  const r = await apiCall(`/equivalencias/${id}`,'PUT',data);
+  if(r.ok){
+    bootstrap.Modal.getInstance(document.getElementById('modalEditarEq')).hide();
+    showToast('✅ Equivalencia actualizada');
+    setTimeout(()=>location.reload(),900);
+  }
+}
+
+async function toggleActiva(id, activa){
+  await apiCall(`/equivalencias/${id}`,'PUT',{activa});
+  showToast(activa?'Equivalencia activada':'Equivalencia desactivada', activa?'success':'warning');
+}
+
+async function eliminarEq(id){
+  if(!confirm('¿Eliminar esta equivalencia?')) return;
+  const r = await apiCall(`/equivalencias/${id}`,'DELETE');
+  if(r.ok){
+    document.getElementById(`eq-${id}`).remove();
+    showToast('Eliminada','warning');
+  }
+}
+</script>
+{% endblock %}

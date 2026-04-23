@@ -1,0 +1,249 @@
+{% extends 'base.html' %} {% block title %}Cargar datos · {{ pac.nombre }}{%
+endblock %} {% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0 fw-bold">
+      <i class="fas fa-upload me-2 text-primary"></i>Cargar datos desde PDFs
+    </h5>
+    <small class="text-muted">{{ pac.nombre }}</small>
+  </div>
+  <a
+    href="{{ url_for('paciente_detalle', pid=pac.id) }}"
+    class="btn btn-outline-secondary btn-sm"
+  >
+    <i class="fas fa-arrow-left me-1"></i>Volver al paciente
+  </a>
+</div>
+
+<!-- Instrucciones generales -->
+<div class="alert alert-info mb-4">
+  <h6 class="fw-bold mb-1">
+    <i class="fas fa-info-circle me-2"></i>¿Cómo funciona?
+  </h6>
+  <p class="mb-1">
+    Flujo recomendado: subir <strong>2 PDFs</strong> (indicaciones + facturados)
+    y dejar que la app cargue todo automáticamente.
+  </p>
+  <p class="mb-0">
+    La app extrae administrados + indicados + facturados y aplica equivalencias
+    automáticamente.
+  </p>
+</div>
+
+<div class="card mb-4 border-primary">
+  <div class="card-header bg-primary text-white fw-bold">
+    <i class="fas fa-file-pdf me-2"></i>Carga rápida desde 2 PDFs (recomendado)
+  </div>
+  <div class="card-body">
+    <p class="small text-muted mb-3">
+      Subí ambos PDFs y la app extrae automáticamente: administrados, facturados
+      e indicaciones médicas de referencia. Luego aplica la equivalencia
+      comercial → facturado.
+    </p>
+    <div class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label fw-semibold"
+          >PDF de indicaciones / administrados</label
+        >
+        <input
+          type="file"
+          id="file-pdf-ind"
+          class="form-control"
+          accept=".pdf"
+        />
+      </div>
+      <div class="col-md-5">
+        <label class="form-label fw-semibold"
+          >PDF de facturados (liquidación)</label
+        >
+        <input
+          type="file"
+          id="file-pdf-fact"
+          class="form-control"
+          accept=".pdf"
+        />
+      </div>
+      <div class="col-md-2">
+        <button
+          id="btn-subir-pdfs"
+          class="btn btn-primary w-100"
+          onclick="subirPDFs()"
+        >
+          <i class="fas fa-magic me-1"></i>Procesar
+        </button>
+      </div>
+      <div class="col-12">
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="pdf-reemplazar"
+            checked
+          />
+          <label class="form-check-label" for="pdf-reemplazar">
+            Reemplazar datos actuales del paciente antes de importar
+          </label>
+        </div>
+      </div>
+    </div>
+    <div id="resultado-pdfs" class="mt-3"></div>
+  </div>
+</div>
+
+<!-- Paso siguiente -->
+<div class="card mt-4 border-success">
+  <div class="card-body">
+    <h6 class="fw-bold text-success mb-3">
+      <i class="fas fa-magic me-2"></i>Después de subir los archivos:
+    </h6>
+    <div class="row text-center g-3">
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded">
+          <div class="fs-4 mb-1">1️⃣</div>
+          <strong>Subiste los archivos</strong><br />
+          <small class="text-muted">2 PDFs (indicaciones + facturados)</small>
+        </div>
+      </div>
+      <div class="col-md-1 d-flex align-items-center justify-content-center">
+        <i class="fas fa-arrow-right text-muted"></i>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded">
+          <div class="fs-4 mb-1">2️⃣</div>
+          <strong>Procesamiento automático</strong><br />
+          <small class="text-muted">La app aplica equivalencias sola</small>
+        </div>
+      </div>
+      <div class="col-md-1 d-flex align-items-center justify-content-center">
+        <i class="fas fa-arrow-right text-muted"></i>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded">
+          <div class="fs-4 mb-1">3️⃣</div>
+          <strong>Ver Control</strong><br />
+          <small class="text-muted">Semáforo de auditoría</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-center mt-3">
+      <a
+        href="{{ url_for('administrados', pid=pac.id) }}"
+        class="btn btn-primary btn-sm"
+      >
+        <i class="fas fa-syringe me-1"></i>Ir a Administrados
+      </a>
+      <a
+        href="{{ url_for('control', pid=pac.id) }}"
+        class="btn btn-warning btn-sm"
+      >
+        <i class="fas fa-chart-bar me-1"></i>Ver Control
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+<script>
+  const PID = {{ pac.id }};
+
+  async function subirPDFs(){
+    const fInd = document.getElementById('file-pdf-ind').files[0];
+    const fFact = document.getElementById('file-pdf-fact').files[0];
+    const reemplazar = document.getElementById('pdf-reemplazar').checked;
+    const out = document.getElementById('resultado-pdfs');
+    const btn = document.getElementById('btn-subir-pdfs');
+
+    if(!fInd || !fFact){
+      showToast('Debes seleccionar los dos PDFs.', 'warning');
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('indicaciones_pdf', fInd);
+    fd.append('facturados_pdf', fFact);
+    fd.append('reemplazar', reemplazar ? '1' : '0');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Procesando...';
+    out.innerHTML = `
+      <div class="mb-2 small text-muted" id="pdf-job-message">Iniciando proceso...</div>
+      <div class="progress" style="height: 22px;">
+        <div id="pdf-job-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+      </div>
+      <div class="small text-muted mt-2">Podés dejar esta pantalla abierta mientras avanza.</div>
+    `;
+
+    try{
+      const startRes = await fetch(`/paciente/${PID}/cargar_pdfs`, { method:'POST', body: fd });
+      const startData = await startRes.json();
+
+      if(!startData.ok || !startData.job_id){
+        out.innerHTML = `<div class="alert alert-danger mb-0 small">${startData.error || 'No se pudo iniciar la importación PDF.'}</div>`;
+        showToast(startData.error || 'Error iniciando procesamiento', 'danger');
+        return;
+      }
+
+      const jobId = startData.job_id;
+      const bar = document.getElementById('pdf-job-bar');
+      const msg = document.getElementById('pdf-job-message');
+
+      await new Promise((resolve) => {
+        const t = setInterval(async () => {
+          try{
+            const sr = await fetch(`/paciente/${PID}/cargar_pdfs_estado/${jobId}`);
+            const sd = await sr.json();
+
+            if(!sd.ok){
+              clearInterval(t);
+              out.innerHTML = `<div class="alert alert-danger mb-0 small">${sd.error || 'Error consultando estado.'}</div>`;
+              showToast('Error consultando estado del procesamiento', 'danger');
+              resolve();
+              return;
+            }
+
+            const pct = Math.max(0, Math.min(100, Number(sd.progress || 0)));
+            bar.style.width = `${pct}%`;
+            bar.textContent = `${pct}%`;
+            if(sd.message){ msg.textContent = sd.message; }
+
+            if(sd.status === 'done'){
+              clearInterval(t);
+              bar.classList.remove('progress-bar-animated');
+              bar.classList.add('bg-success');
+              const r = sd.result || {};
+              out.innerHTML = `
+                <div class="alert alert-success mb-0">
+                  <div><strong>Importación PDF completada</strong></div>
+                  <div class="small mt-1">Administrados: <strong>${r.administrados || 0}</strong> · Indicados: <strong>${r.indicados || 0}</strong> · Facturados: <strong>${r.facturados || 0}</strong></div>
+                  <div class="small">Equivalencias aplicadas: <strong>${r.equivalencias_aplicadas || 0}</strong></div>
+                </div>`;
+              showToast('Importación desde PDFs finalizada correctamente.');
+              resolve();
+            }
+
+            if(sd.status === 'error'){
+              clearInterval(t);
+              out.innerHTML = `<div class="alert alert-danger mb-0 small">${sd.error || 'Error procesando PDFs.'}</div>`;
+              showToast(sd.error || 'Error procesando PDFs', 'danger');
+              resolve();
+            }
+          } catch(e){
+            clearInterval(t);
+            out.innerHTML = '<div class="alert alert-danger mb-0 small">Error de conexión consultando progreso.</div>';
+            showToast('Error de conexión consultando progreso', 'danger');
+            resolve();
+          }
+        }, 900);
+      });
+    } catch(e){
+      out.innerHTML = '<div class="alert alert-danger mb-0 small">Error inesperado al importar PDFs.</div>';
+      showToast('Error inesperado al importar PDFs', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-magic me-1"></i>Procesar';
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build and tooling
+.pytest_cache/
+.mypy_cache/
+.vscode/
+
+# App runtime data
+uploads/
+!uploads/.gitkeep
+instance/
+data/*.db
+
+# OS files
+.DS_Store
+Thumbs.db

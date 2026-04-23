@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}MedControl{% endblock %}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  body{background:#f0f4f8;font-size:.93rem}
+  .navbar-brand span{font-weight:700;color:#2e75b6}
+  .sidebar{min-height:100vh;background:#1f4e79;padding-top:1rem}
+  .sidebar .nav-link{color:#b8d4f0;padding:.55rem 1.2rem;border-radius:6px;margin:.1rem .5rem}
+  .sidebar .nav-link:hover,.sidebar .nav-link.active{background:#2e75b6;color:#fff}
+  .sidebar .nav-link i{width:20px;text-align:center;margin-right:.5rem}
+  .sidebar .section-title{color:#5a9fd4;font-size:.75rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.08em;padding:.8rem 1.2rem .2rem}
+  .main-content{padding:1.5rem}
+  .card{border:none;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .badge-estado-ok{background:#198754}.badge-estado-sin_mapeo{background:#dc3545}
+  .badge-estado-revisar{background:#ffc107;color:#000}.badge-estado-pendiente{background:#0dcaf0;color:#000}
+  .badge-estado-no_facturado{background:#fd7e14}
+  .table-hover tbody tr:hover{background:#e8f0fe}
+  .btn-accion{padding:.2rem .6rem;font-size:.8rem}
+  .flash-container{position:fixed;top:70px;right:20px;z-index:9999;min-width:300px}
+  .pac-header{background:linear-gradient(135deg,#1f4e79,#2e75b6);color:#fff;border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:1rem}
+  .stat-card{text-align:center;padding:1rem;border-radius:8px}
+  .stat-num{font-size:2rem;font-weight:700;line-height:1}
+  .stat-lbl{font-size:.78rem;color:#666;margin-top:.2rem}
+  .log-sistema{background:#f0fff4}.log-usuario{background:#fffde7}
+  .highlight-row{animation:flash-row .8s ease}
+  @keyframes flash-row{0%{background:#fff3cd}100%{background:inherit}}
+  .eq-tag{display:inline-block;background:#e8f0fe;border:1px solid #2e75b6;border-radius:4px;
+    padding:.15rem .5rem;font-size:.78rem;margin:.1rem;cursor:default}
+  select.form-select-sm{font-size:.82rem}
+  .nombre-orig{color:#555;font-size:.85rem}
+  .nombre-corr{font-weight:600;color:#1a5c2e}
+</style>
+</head>
+<body>
+<div class="container-fluid p-0">
+  <div class="row g-0">
+
+    <!-- SIDEBAR -->
+    <div class="col-auto sidebar d-flex flex-column" style="width:220px;min-width:220px">
+      <div class="px-3 pt-2 pb-3 border-bottom border-secondary">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-pills fa-lg text-info"></i>
+          <span class="fw-bold text-white fs-6">MedControl</span>
+        </div>
+        <small class="text-secondary">CEMIC · Auditoría</small>
+      </div>
+
+      <nav class="flex-grow-1 py-2">
+        <div class="section-title">General</div>
+        <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint=='index' %}active{% endif %}">
+          <i class="fas fa-home"></i> Dashboard
+        </a>
+        <a href="{{ url_for('nuevo_paciente') }}" class="nav-link {% if request.endpoint=='nuevo_paciente' %}active{% endif %}">
+          <i class="fas fa-user-plus"></i> Nuevo paciente
+        </a>
+        <a href="{{ url_for('equivalencias') }}" class="nav-link {% if request.endpoint=='equivalencias' %}active{% endif %}">
+          <i class="fas fa-exchange-alt"></i> Equivalencias
+        </a>
+
+        {% if pac is defined %}
+        <div class="section-title mt-2">Paciente actual</div>
+        <a href="{{ url_for('paciente_detalle', pid=pac.id) }}" class="nav-link {% if request.endpoint=='paciente_detalle' %}active{% endif %}">
+          <i class="fas fa-id-card"></i> Resumen
+        </a>
+        <a href="{{ url_for('administrados', pid=pac.id) }}" class="nav-link {% if request.endpoint=='administrados' %}active{% endif %}">
+          <i class="fas fa-syringe"></i> Administrados
+        </a>
+        <a href="{{ url_for('indicados', pid=pac.id) }}" class="nav-link {% if request.endpoint=='indicados' %}active{% endif %}">
+          <i class="fas fa-stethoscope"></i> Indicados
+        </a>
+        <a href="{{ url_for('facturados', pid=pac.id) }}" class="nav-link {% if request.endpoint=='facturados' %}active{% endif %}">
+          <i class="fas fa-file-invoice-dollar"></i> Facturados
+        </a>
+        <a href="{{ url_for('control', pid=pac.id) }}" class="nav-link {% if request.endpoint=='control' %}active{% endif %}">
+          <i class="fas fa-chart-bar"></i> Control cruzado
+        </a>
+        <a href="{{ url_for('log_cambios', pid=pac.id) }}" class="nav-link {% if request.endpoint=='log_cambios' %}active{% endif %}">
+          <i class="fas fa-history"></i> Log de cambios
+        </a>
+        <a href="{{ url_for('exportar_excel', pid=pac.id) }}" class="nav-link text-warning">
+          <i class="fas fa-file-excel"></i> Exportar Excel
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="px-3 py-2 border-top border-secondary">
+        <small class="text-secondary">v1.0 · 2026</small>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="col main-content">
+      <div class="flash-container" id="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+          <div class="alert alert-{{ 'success' if cat=='success' else 'danger' }} alert-dismissible fade show shadow">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+          {% endfor %}
+        {% endwith %}
+      </div>
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script>
+function showToast(msg, tipo='success'){
+  const c = document.getElementById('flash-container');
+  const d = document.createElement('div');
+  d.className = `alert alert-${tipo} alert-dismissible fade show shadow`;
+  d.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  c.appendChild(d);
+  setTimeout(()=>{ try{bootstrap.Alert.getOrCreateInstance(d).close()}catch(e){d.remove()} }, 3500);
+}
+async function apiCall(url, method='GET', body=null){
+  const opts = {method, headers:{'Content-Type':'application/json'}};
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  return r.json();
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

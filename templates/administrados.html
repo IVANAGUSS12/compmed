@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% block title %}Administrados · {{ pac.nombre }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="fas fa-syringe me-2 text-primary"></i>Medicamentos Administrados</h5>
+    <small class="text-muted">{{ pac.nombre }} — {{ adms|length }} registros</small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-success btn-sm" onclick="aplicarEquiv()">
+      <i class="fas fa-magic me-1"></i>Aplicar equivalencias
+    </button>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+      <i class="fas fa-plus me-1"></i>Agregar
+    </button>
+    <a href="{{ url_for('control', pid=pac.id) }}" class="btn btn-warning btn-sm">
+      <i class="fas fa-chart-bar me-1"></i>Ver control
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2 d-flex gap-3 flex-wrap align-items-center">
+    <div>
+      <label class="form-label mb-0 me-1 small fw-semibold">Estado:</label>
+      <select id="filtro-estado" class="form-select form-select-sm d-inline-block w-auto">
+        <option value="">Todos</option>
+        <option value="ok">OK</option>
+        <option value="sin_mapeo">Sin mapeo</option>
+        <option value="revisar">Revisar</option>
+        <option value="no_facturado">No facturado</option>
+        <option value="pendiente">Pendiente</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label mb-0 me-1 small fw-semibold">Fecha:</label>
+      <input type="text" id="filtro-fecha" class="form-control form-control-sm d-inline-block w-auto" placeholder="dd/mm/aa">
+    </div>
+    <div>
+      <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Buscar nombre..." style="width:220px">
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltros()">
+      <i class="fas fa-times me-1"></i>Limpiar
+    </button>
+    <span class="ms-auto text-muted small" id="conteo">{{ adms|length }} registros</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+    <table class="table table-hover mb-0" id="tbl-adm">
+      <thead class="table-dark">
+        <tr>
+          <th style="width:95px">Fecha</th>
+          <th>Enfermero</th>
+          <th>Nombre original (comercial)</th>
+          <th>Nombre corregido (facturado)</th>
+          <th style="width:110px">Estado</th>
+          <th style="width:100px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-adm">
+      {% for a in adms %}
+      <tr id="row-{{ a.id }}" data-estado="{{ a.estado }}" data-fecha="{{ a.fecha }}">
+        <td class="text-center"><small>{{ a.fecha }}</small></td>
+        <td><small class="text-muted">{{ a.hora_enfermero }}</small></td>
+        <td>
+          <span class="nombre-orig">{{ a.nombre_original }}</span>
+          {% if a.observacion %}<br><small class="text-secondary"><i class="fas fa-comment-alt me-1"></i>{{ a.observacion }}</small>{% endif %}
+        </td>
+        <td>
+          {% if a.nombre_corregido %}
+            <span class="nombre-corr">{{ a.nombre_corregido }}</span>
+          {% else %}
+            <span class="text-danger"><i class="fas fa-times me-1"></i>Sin mapeo</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <span class="badge badge-estado-{{ a.estado }}">{{ a.estado|upper|replace('_',' ') }}</span>
+        </td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn btn-outline-primary btn-accion" onclick="editarAdm({{ a.id }},'{{ a.fecha }}','{{ a.hora_enfermero|replace("'","") }}','{{ a.nombre_original|replace("'","\\'") }}','{{ (a.nombre_corregido or '')|replace("'","\\'") }}','{{ a.estado }}','{{ (a.observacion or '')|replace("'","\\'") }}')" title="Editar">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-accion" onclick="eliminarAdm({{ a.id }})" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Agregar administrado</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-sm-4">
+            <label class="form-label">Fecha *</label>
+            <input type="text" id="n-fecha" class="form-control" placeholder="dd/mm/aa">
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label">Hora · Enfermero</label>
+            <input type="text" id="n-enfermero" class="form-control" placeholder="08:00 GARCIA, MARIA">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nombre original (como figura en la planilla) *</label>
+            <input type="text" id="n-orig" class="form-control" placeholder="FRIDALIT 100 100 MG F.A.X 1 X 5 ML FADA PHARMA X 1">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nombre corregido (del facturado) — opcional</label>
+            <input type="text" id="n-corr" class="form-control" list="lista-facturados" placeholder="Dejar vacío para aplicar automáticamente">
+            <datalist id="lista-facturados">
+              {% for e in equivs %}<option value="{{ e }}">{% endfor %}
+            </datalist>
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label">Estado</label>
+            <select id="n-estado" class="form-select">
+              <option value="pendiente">Pendiente</option>
+              <option value="ok">OK</option>
+              <option value="revisar">Revisar</option>
+              <option value="sin_mapeo">Sin mapeo</option>
+              <option value="no_facturado">No facturado</option>
+            </select>
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label">Observación</label>
+            <input type="text" id="n-obs" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarNuevo()"><i class="fas fa-save me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar administrado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="e-id">
+        <div class="row g-3">
+          <div class="col-sm-4">
+            <label class="form-label">Fecha</label>
+            <input type="text" id="e-fecha" class="form-control">
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label">Hora · Enfermero</label>
+            <input type="text" id="e-enfermero" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nombre original</label>
+            <input type="text" id="e-orig" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold text-primary">Nombre corregido (facturado) ✏️</label>
+            <input type="text" id="e-corr" class="form-control border-primary" list="lista-facturados2">
+            <datalist id="lista-facturados2">
+              {% for e in equivs %}<option value="{{ e }}">{% endfor %}
+            </datalist>
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label">Estado</label>
+            <select id="e-estado" class="form-select">
+              <option value="pendiente">Pendiente</option>
+              <option value="ok">OK</option>
+              <option value="revisar">Revisar</option>
+              <option value="sin_mapeo">Sin mapeo</option>
+              <option value="no_facturado">No facturado</option>
+            </select>
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label">Observación</label>
+            <input type="text" id="e-obs" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" onclick="guardarEdicion()"><i class="fas fa-save me-1"></i>Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PID = {{ pac.id }};
+
+async function aplicarEquiv(){
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Procesando...';
+  const r = await apiCall(`/paciente/${PID}/aplicar_equiv`, 'POST');
+  btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>Aplicar equivalencias';
+  if(r.ok){
+    showToast(`✅ ${r.cambios} equivalencias aplicadas. Recargando...`);
+    setTimeout(()=>location.reload(), 1200);
+  }
+}
+
+function editarAdm(id,fecha,enfermero,orig,corr,estado,obs){
+  document.getElementById('e-id').value = id;
+  document.getElementById('e-fecha').value = fecha;
+  document.getElementById('e-enfermero').value = enfermero;
+  document.getElementById('e-orig').value = orig;
+  document.getElementById('e-corr').value = corr;
+  document.getElementById('e-estado').value = estado;
+  document.getElementById('e-obs').value = obs;
+  new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+
+async function guardarEdicion(){
+  const id = document.getElementById('e-id').value;
+  const data = {
+    fecha: document.getElementById('e-fecha').value,
+    hora_enfermero: document.getElementById('e-enfermero').value,
+    nombre_original: document.getElementById('e-orig').value,
+    nombre_corregido: document.getElementById('e-corr').value,
+    estado: document.getElementById('e-estado').value,
+    observacion: document.getElementById('e-obs').value,
+    usuario: 'usuario'
+  };
+  const r = await apiCall(`/paciente/${PID}/administrados/${id}`, 'PUT', data);
+  if(r.ok){
+    bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
+    showToast('✅ Cambio guardado');
+    setTimeout(()=>location.reload(), 800);
+  }
+}
+
+async function guardarNuevo(){
+  const data = {
+    fecha: document.getElementById('n-fecha').value,
+    hora_enfermero: document.getElementById('n-enfermero').value,
+    nombre_original: document.getElementById('n-orig').value,
+    nombre_corregido: document.getElementById('n-corr').value,
+    estado: document.getElementById('n-estado').value,
+    observacion: document.getElementById('n-obs').value,
+    usuario: 'usuario'
+  };
+  if(!data.fecha||!data.nombre_original){showToast('Completá fecha y nombre','warning');return;}
+  const r = await apiCall(`/paciente/${PID}/administrados/nuevo`, 'POST', data);
+  if(r.ok){
+    bootstrap.Modal.getInstance(document.getElementById('modalNuevo')).hide();
+    showToast('✅ Administrado agregado');
+    setTimeout(()=>location.reload(), 800);
+  }
+}
+
+async function eliminarAdm(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  const r = await apiCall(`/paciente/${PID}/administrados/${id}`, 'DELETE');
+  if(r.ok){
+    document.getElementById(`row-${id}`).remove();
+    showToast('Eliminado','warning');
+  }
+}
+
+// Filtros
+function filtrar(){
+  const estado = document.getElementById('filtro-estado').value;
+  const fecha = document.getElementById('filtro-fecha').value.toLowerCase();
+  const texto = document.getElementById('filtro-texto').value.toLowerCase();
+  let n = 0;
+  document.querySelectorAll('#tbody-adm tr').forEach(tr=>{
+    const e = tr.dataset.estado;
+    const f = tr.dataset.fecha.toLowerCase();
+    const t = tr.textContent.toLowerCase();
+    const ok = (!estado||e===estado) && (!fecha||f.includes(fecha)) && (!texto||t.includes(texto));
+    tr.style.display = ok ? '' : 'none';
+    if(ok) n++;
+  });
+  document.getElementById('conteo').textContent = n + ' registros';
+}
+function limpiarFiltros(){
+  document.getElementById('filtro-estado').value='';
+  document.getElementById('filtro-fecha').value='';
+  document.getElementById('filtro-texto').value='';
+  filtrar();
+}
+document.getElementById('filtro-estado').addEventListener('change', filtrar);
+document.getElementById('filtro-fecha').addEventListener('input', filtrar);
+document.getElementById('filtro-texto').addEventListener('input', filtrar);
+</script>
+{% endblock %}

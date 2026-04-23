@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}Indicados · {{ pac.nombre }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="fas fa-stethoscope me-2 text-info"></i>Indicaciones Médicas</h5>
+    <small class="text-muted">{{ pac.nombre }} — {{ inds|length }} registros</small>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-info btn-sm text-white" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+      <i class="fas fa-plus me-1"></i>Agregar
+    </button>
+    <a href="{{ url_for('control', pid=pac.id) }}" class="btn btn-warning btn-sm">
+      <i class="fas fa-chart-bar me-1"></i>Ver control
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2 d-flex gap-3 flex-wrap align-items-center">
+    <div>
+      <input type="text" id="filtro-fecha" class="form-control form-control-sm d-inline-block w-auto" placeholder="Fecha dd/mm/aa">
+    </div>
+    <div>
+      <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Buscar droga / médico..." style="width:240px">
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltros()">
+      <i class="fas fa-times me-1"></i>Limpiar
+    </button>
+    <span class="ms-auto text-muted small" id="conteo">{{ inds|length }} registros</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+    <table class="table table-hover mb-0" id="tbl-ind">
+      <thead class="table-dark">
+        <tr>
+          <th style="width:95px">Fecha</th>
+          <th>Médico</th>
+          <th>Droga / Indicación</th>
+          <th>Dosis · Vía</th>
+          <th>Observación</th>
+          <th style="width:100px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-ind">
+      {% for i in inds %}
+      <tr id="row-{{ i.id }}" data-fecha="{{ i.fecha }}">
+        <td class="text-center"><small>{{ i.fecha }}</small></td>
+        <td><small class="text-muted">{{ i.medico }}</small></td>
+        <td class="fw-semibold">{{ i.droga }}</td>
+        <td><small class="text-secondary">{{ i.dosis_via }}</small></td>
+        <td><small class="text-muted">{{ i.observacion or '' }}</small></td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn btn-outline-primary btn-accion"
+              onclick="editarInd({{ i.id }},'{{ i.fecha }}','{{ i.medico|replace("'","") }}','{{ i.droga|replace("'","\\'") }}','{{ (i.dosis_via or '')|replace("'","\\'") }}','{{ (i.observacion or '')|replace("'","\\'") }}')"
+              title="Editar"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-outline-danger btn-accion" onclick="eliminarInd({{ i.id }})" title="Eliminar">
+              <i class="fas fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Agregar indicación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-sm-4">
+            <label class="form-label">Fecha *</label>
+            <input type="text" id="n-fecha" class="form-control" placeholder="dd/mm/aa">
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label">Médico</label>
+            <input type="text" id="n-medico" class="form-control" placeholder="DR. APELLIDO">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Droga / Indicación *</label>
+            <input type="text" id="n-droga" class="form-control" placeholder="AMOXICILINA 500 MG">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Dosis · Vía</label>
+            <input type="text" id="n-dosis" class="form-control" placeholder="500 MG EV C/8 HS">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Observación</label>
+            <input type="text" id="n-obs" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-info text-white" onclick="guardarNuevo()"><i class="fas fa-save me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar indicación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="e-id">
+        <div class="row g-3">
+          <div class="col-sm-4">
+            <label class="form-label">Fecha</label>
+            <input type="text" id="e-fecha" class="form-control">
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label">Médico</label>
+            <input type="text" id="e-medico" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold text-info">Droga / Indicación</label>
+            <input type="text" id="e-droga" class="form-control border-info">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Dosis · Vía</label>
+            <input type="text" id="e-dosis" class="form-control">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Observación</label>
+            <input type="text" id="e-obs" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" onclick="guardarEdicion()"><i class="fas fa-save me-1"></i>Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PID = {{ pac.id }};
+
+function editarInd(id,fecha,medico,droga,dosis,obs){
+  document.getElementById('e-id').value = id;
+  document.getElementById('e-fecha').value = fecha;
+  document.getElementById('e-medico').value = medico;
+  document.getElementById('e-droga').value = droga;
+  document.getElementById('e-dosis').value = dosis;
+  document.getElementById('e-obs').value = obs;
+  new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+
+async function guardarEdicion(){
+  const id = document.getElementById('e-id').value;
+  const data = {
+    fecha: document.getElementById('e-fecha').value,
+    medico: document.getElementById('e-medico').value,
+    droga: document.getElementById('e-droga').value,
+    dosis_via: document.getElementById('e-dosis').value,
+    observacion: document.getElementById('e-obs').value,
+    usuario: 'usuario'
+  };
+  const r = await apiCall(`/paciente/${PID}/indicados/${id}`, 'PUT', data);
+  if(r.ok){
+    bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
+    showToast('Indicación actualizada');
+    setTimeout(()=>location.reload(), 800);
+  }
+}
+
+async function guardarNuevo(){
+  const data = {
+    fecha: document.getElementById('n-fecha').value,
+    medico: document.getElementById('n-medico').value,
+    droga: document.getElementById('n-droga').value,
+    dosis_via: document.getElementById('n-dosis').value,
+    observacion: document.getElementById('n-obs').value,
+    usuario: 'usuario'
+  };
+  if(!data.fecha||!data.droga){showToast('Completá fecha y droga','warning');return;}
+  const r = await apiCall(`/paciente/${PID}/indicados/nuevo`, 'POST', data);
+  if(r.ok){
+    bootstrap.Modal.getInstance(document.getElementById('modalNuevo')).hide();
+    showToast('Indicación agregada');
+    setTimeout(()=>location.reload(), 800);
+  }
+}
+
+async function eliminarInd(id){
+  if(!confirm('¿Eliminar esta indicación?')) return;
+  const r = await apiCall(`/paciente/${PID}/indicados/${id}`, 'DELETE');
+  if(r.ok){
+    document.getElementById(`row-${id}`).remove();
+    showToast('Eliminada','warning');
+  }
+}
+
+function filtrar(){
+  const fecha = document.getElementById('filtro-fecha').value.toLowerCase();
+  const texto = document.getElementById('filtro-texto').value.toLowerCase();
+  let n = 0;
+  document.querySelectorAll('#tbody-ind tr').forEach(tr=>{
+    const f = tr.dataset.fecha.toLowerCase();
+    const t = tr.textContent.toLowerCase();
+    const ok = (!fecha||f.includes(fecha)) && (!texto||t.includes(texto));
+    tr.style.display = ok ? '' : 'none';
+    if(ok) n++;
+  });
+  document.getElementById('conteo').textContent = n + ' registros';
+}
+function limpiarFiltros(){
+  document.getElementById('filtro-fecha').value='';
+  document.getElementById('filtro-texto').value='';
+  filtrar();
+}
+document.getElementById('filtro-fecha').addEventListener('input', filtrar);
+document.getElementById('filtro-texto').addEventListener('input', filtrar);
+</script>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends 'base.html' %} {% block title %}Dashboard · MedControl{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold text-primary">
+      <i class="fas fa-pills me-2"></i>Dashboard
+    </h4>
+    <small class="text-muted">Gestión de medicamentos · CEMIC</small>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-info text-dark fs-6 py-2 px-3">
+      <i class="fas fa-exchange-alt me-1"></i>{{ total_equiv }} equivalencias
+      activas
+    </span>
+    <a href="{{ url_for('nuevo_paciente') }}" class="btn btn-primary">
+      <i class="fas fa-user-plus me-1"></i>Nuevo paciente
+    </a>
+  </div>
+</div>
+
+{% if not pacientes %}
+<div class="card text-center py-5">
+  <div class="card-body">
+    <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+    <h5 class="text-muted">No hay pacientes cargados</h5>
+    <a href="{{ url_for('nuevo_paciente') }}" class="btn btn-primary mt-2">
+      <i class="fas fa-user-plus me-1"></i>Cargar primer paciente
+    </a>
+  </div>
+</div>
+{% else %}
+
+<!-- Stats globales -->
+{% set tot_ok=0 %}{% set tot_sin=0 %}{% set tot_rev=0 %} {% for p in pacientes
+%} {% set s=stats[p.id] %} {% set tot_ok = tot_ok + s.ok %} {% set tot_sin =
+tot_sin + s.sin_mapeo %} {% set tot_rev = tot_rev + s.revisar %} {% endfor %}
+<div class="row g-3 mb-4">
+  <div class="col-sm-3">
+    <div class="card stat-card">
+      <div class="stat-num text-primary">{{ pacientes|length }}</div>
+      <div class="stat-lbl"><i class="fas fa-users me-1"></i>Pacientes</div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card stat-card" style="background: #d4edda">
+      <div class="stat-num text-success">{{ tot_ok }}</div>
+      <div class="stat-lbl">
+        <i class="fas fa-check-circle me-1"></i>Administrados OK
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card stat-card" style="background: #f8d7da">
+      <div class="stat-num text-danger">{{ tot_sin }}</div>
+      <div class="stat-lbl">
+        <i class="fas fa-times-circle me-1"></i>Sin mapeo
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card stat-card" style="background: #fff3cd">
+      <div class="stat-num text-warning">{{ tot_rev }}</div>
+      <div class="stat-lbl">
+        <i class="fas fa-exclamation-circle me-1"></i>Para revisar
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de pacientes -->
+<div class="card">
+  <div
+    class="card-header bg-white d-flex justify-content-between align-items-center"
+  >
+    <span class="fw-bold"><i class="fas fa-list me-2"></i>Pacientes</span>
+    <input
+      type="text"
+      id="buscar"
+      class="form-control form-control-sm w-auto"
+      placeholder="Buscar..."
+    />
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0" id="tbl-pac">
+      <thead class="table-dark">
+        <tr>
+          <th>Paciente</th>
+          <th>DNI</th>
+          <th>Ingreso</th>
+          <th>Egreso</th>
+          <th class="text-center">Adm.</th>
+          <th class="text-center">OK</th>
+          <th class="text-center">Sin mapeo</th>
+          <th class="text-center">Revisar</th>
+          <th class="text-center">Indicados</th>
+          <th class="text-center">Facturados</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pacientes %} {% set s=stats[p.id] %}
+        <tr>
+          <td class="fw-semibold">{{ p.nombre }}</td>
+          <td><small class="text-muted">{{ p.dni or '—' }}</small></td>
+          <td><small>{{ p.fecha_ingreso }}</small></td>
+          <td><small>{{ p.fecha_egreso or '—' }}</small></td>
+          <td class="text-center">{{ s.total_adm }}</td>
+          <td class="text-center">
+            {% if s.ok %}<span class="badge bg-success">{{ s.ok }}</span>{% else
+            %}<span class="text-muted">0</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if s.sin_mapeo %}<span class="badge bg-danger"
+              >{{ s.sin_mapeo }}</span
+            >{% else %}<span class="text-muted">0</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if s.revisar %}<span class="badge bg-warning text-dark"
+              >{{ s.revisar }}</span
+            >{% else %}<span class="text-muted">0</span>{% endif %}
+          </td>
+          <td class="text-center text-muted">{{ s.total_ind }}</td>
+          <td class="text-center text-muted">{{ s.total_fact }}</td>
+          <td>
+            <div class="d-flex gap-1">
+              <a
+                href="{{ url_for('paciente_detalle', pid=p.id) }}"
+                class="btn btn-sm btn-outline-primary btn-accion"
+                title="Ver"
+              >
+                <i class="fas fa-eye"></i>
+              </a>
+              <a
+                href="{{ url_for('control', pid=p.id) }}"
+                class="btn btn-sm btn-outline-success btn-accion"
+                title="Control"
+              >
+                <i class="fas fa-chart-bar"></i>
+              </a>
+              <a
+                href="{{ url_for('exportar_excel', pid=p.id) }}"
+                class="btn btn-sm btn-outline-secondary btn-accion"
+                title="Excel"
+              >
+                <i class="fas fa-file-excel"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %} {% endblock %} {% block scripts %}
+<script>
+  $("#tbl-pac").DataTable({
+    language: { url: "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-AR.json" },
+    pageLength: 20,
+    dom: "tp",
+  });
+  document.getElementById("buscar").addEventListener("input", function () {
+    $("#tbl-pac").DataTable().search(this.value).draw();
+  });
+</script>
+{% endblock %}
