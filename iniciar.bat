@@ -4,9 +4,9 @@ cd /d "%~dp0"
 chcp 65001 >nul
 
 echo.
-echo  ╔══════════════════════════════════════════════╗
-echo  ║        MedControl - Iniciando servidor       ║
-echo  ╚══════════════════════════════════════════════╝
+echo  ==========================================
+echo       MedControl - Iniciando servidor
+echo  ==========================================
 echo.
 
 :: Resolver comando de Python
@@ -57,5 +57,9 @@ start /b "" cmd /c "timeout /t 2 >nul && start http://localhost:5000"
 
 :: Iniciar Flask
 python app.py
+if errorlevel 1 (
+    echo.
+    echo [ERROR] La aplicacion cerro con un error. Ver mensaje arriba.
+)
 
 pause
