@@ -1,7 +1,6 @@
 @echo off
-title MedControl - Sistema de Auditoría de Medicamentos
+title MedControl
 cd /d "%~dp0"
-chcp 65001 >nul
 
 echo.
 echo  ==========================================
@@ -9,7 +8,6 @@ echo       MedControl - Iniciando servidor
 echo  ==========================================
 echo.
 
-:: Resolver comando de Python
 set "PY_CMD="
 py -3 --version >nul 2>&1
 if not errorlevel 1 set "PY_CMD=py -3"
@@ -23,9 +21,8 @@ if "%PY_CMD%"=="" (
     exit /b 1
 )
 
-:: Crear entorno virtual si no existe
 if not exist ".venv\Scripts\python.exe" (
-    echo Creando entorno virtual (.venv)...
+    echo Creando entorno virtual...
     %PY_CMD% -m venv .venv
     if errorlevel 1 (
         echo [ERROR] No se pudo crear el entorno virtual.
@@ -34,12 +31,10 @@ if not exist ".venv\Scripts\python.exe" (
     )
 )
 
-:: Activar venv
 call ".venv\Scripts\activate.bat"
 
-:: Instalar dependencias
-echo Instalando/actualizando dependencias...
-python -m pip install --upgrade pip
+echo Instalando dependencias...
+python -m pip install --upgrade pip --quiet
 python -m pip install -r requirements.txt
 if errorlevel 1 (
     echo [ERROR] Fallo la instalacion de dependencias.
@@ -52,10 +47,8 @@ echo  Servidor iniciado en: http://localhost:5000
 echo  Presiona Ctrl+C para detener
 echo.
 
-:: Abrir el navegador despues de 2 segundos
 start /b "" cmd /c "timeout /t 2 >nul && start http://localhost:5000"
 
-:: Iniciar Flask
 python app.py
 if errorlevel 1 (
     echo.
