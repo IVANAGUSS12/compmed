@@ -1,54 +1,43 @@
-{% extends 'base.html' %} {% block title %}Nuevo paciente · MedControl{%
-endblock %} {% block content %}
+{% extends 'base.html' %}
+{% block title %}Nuevo paciente · MedControl{% endblock %}
+
+{% block content %}
 <div class="row justify-content-center">
-  <div class="col-lg-7">
+  <div class="col-lg-6">
     <div class="card">
-      <div class="card-header bg-primary text-white fw-bold">
-        <i class="fas fa-user-plus me-2"></i>Nuevo paciente
+      <div class="card-header fw-bold" style="background:#1a3a5c;color:#fff">
+        <i class="bi bi-person-plus me-2"></i>Nuevo paciente
       </div>
       <div class="card-body">
         <form method="POST">
           <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label fw-semibold">Apellido y nombre *</label>
-              <input
-                type="text"
-                name="nombre"
-                class="form-control"
-                required
-                placeholder="Apellido, Nombre"
-              />
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Apellido <span class="text-danger">*</span></label>
+              <input type="text" name="apellido" class="form-control" required placeholder="Apellido">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+              <input type="text" name="nombre" class="form-control" required placeholder="Nombre">
             </div>
             <div class="col-sm-6">
               <label class="form-label fw-semibold">DNI</label>
-              <input type="text" name="dni" class="form-control" />
+              <input type="text" name="dni" class="form-control" placeholder="Número de DNI">
+            </div>
+            <div class="col-sm-6"></div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Fecha de ingreso</label>
+              <input type="date" name="fecha_ingreso" class="form-control">
             </div>
             <div class="col-sm-6">
-              <label class="form-label fw-semibold">Fecha ingreso</label>
-              <input
-                type="text"
-                name="fecha_ingreso"
-                class="form-control"
-                placeholder="dd/mm/aaaa"
-              />
-            </div>
-            <div class="col-sm-6">
-              <label class="form-label fw-semibold">Fecha egreso</label>
-              <input
-                type="text"
-                name="fecha_egreso"
-                class="form-control"
-                placeholder="dd/mm/aaaa"
-              />
+              <label class="form-label fw-semibold">Fecha de egreso</label>
+              <input type="date" name="fecha_egreso" class="form-control">
             </div>
           </div>
           <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save me-1"></i>Guardar paciente
+              <i class="bi bi-save me-1"></i>Guardar
             </button>
-            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary"
-              >Cancelar</a
-            >
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancelar</a>
           </div>
         </form>
       </div>

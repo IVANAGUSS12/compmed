@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Cargar PDF · MedControl{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header fw-bold" style="background:#1a3a5c;color:#fff">
+        <i class="bi bi-file-earmark-pdf me-2"></i>Cargar PDF de internación
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">
+          Subí el archivo PDF que contiene las <strong>indicaciones médicas</strong> y los
+          <strong>medicamentos administrados</strong>. El sistema extrae automáticamente
+          los datos del paciente, las indicaciones y las administraciones, y genera la comparación.
+        </p>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Archivo PDF <span class="text-danger">*</span></label>
+            <input type="file" name="pdf_file" accept=".pdf" class="form-control" required>
+            <div class="form-text">El PDF debe tener el formato de internación del sistema hospitalario.</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-cloud-upload me-1"></i>Procesar PDF
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-body py-2">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Si el paciente (por DNI) ya existe en el sistema, se reemplazarán sus datos anteriores.
+          Si es nuevo, se crea automáticamente.
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

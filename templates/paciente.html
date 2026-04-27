@@ -1,0 +1,1067 @@
+{% extends 'base.html' %} {% block title %}{{ pac.apellido }}, {{ pac.nombre }}
+· MedControl{% endblock %} {% block content %} {# ── CABECERA PACIENTE ── #}
+<div
+  class="card mb-4"
+  style="
+    background: linear-gradient(135deg, #1a3a5c, #2e6da4);
+    color: #fff;
+    border-radius: 12px;
+  "
+>
+  <div
+    class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2"
+  >
+    <div>
+      <h4 class="mb-1 fw-bold">
+        <i class="bi bi-person-fill me-2"></i>{{ pac.apellido }}, {{ pac.nombre
+        }}
+      </h4>
+      <span class="me-3 opacity-90"
+        ><i class="bi bi-card-text me-1"></i>DNI:
+        <strong>{{ pac.dni or '—' }}</strong></span
+      >
+      {% if pac.fecha_ingreso %}
+      <span class="me-3 opacity-90"
+        ><i class="bi bi-calendar-check me-1"></i>Ingreso:
+        <strong>{{ pac.fecha_ingreso }}</strong></span
+      >
+      {% endif %} {% if pac.fecha_egreso %}
+      <span class="opacity-90"
+        ><i class="bi bi-calendar-x me-1"></i>Egreso:
+        <strong>{{ pac.fecha_egreso }}</strong></span
+      >
+      {% endif %}
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a
+        href="{{ url_for('cargar_pdf') }}"
+        class="btn btn-warning btn-sm fw-semibold"
+      >
+        <i class="bi bi-file-earmark-pdf me-1"></i>Recargar PDF
+      </a>
+      <button
+        class="btn btn-outline-light btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#modalEditarPac"
+      >
+        <i class="bi bi-pencil me-1"></i>Editar
+      </button>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+      </a>
+    </div>
+  </div>
+</div>
+
+{# ── TABS ── #}
+<ul class="nav nav-pills mb-3" id="tabPaciente">
+  <li class="nav-item">
+    <a
+      class="nav-link {% if tab=='comparacion' %}active{% endif %}"
+      href="{{ url_for('paciente', pid=pac.id, tab='comparacion') }}"
+    >
+      <i class="bi bi-check2-all me-1"></i>Comparación {% set cnt_ok =
+      comparacion|selectattr('estado','eq','ok') |list|length %} {% set cnt_inc
+      = comparacion|selectattr('estado','eq','incompleto')|list|length %} {% set
+      cnt_fal = comparacion|selectattr('estado','eq','falta') |list|length %} {%
+      set total = comparacion|length %} {% if total %} {% if cnt_fal == 0 and
+      cnt_inc == 0 %}
+      <span class="badge bg-success ms-1">{{ cnt_ok }}/{{ total }}</span>
+      {% elif cnt_fal == total %}
+      <span class="badge bg-danger ms-1">0/{{ total }}</span>
+      {% else %}
+      <span class="badge bg-warning text-dark ms-1"
+        >{{ cnt_ok }}/{{ total }}</span
+      >
+      {% endif %} {% endif %}
+    </a>
+  </li>
+  <li class="nav-item">
+    <a
+      class="nav-link {% if tab=='indicaciones' %}active{% endif %}"
+      href="{{ url_for('paciente', pid=pac.id, tab='indicaciones') }}"
+    >
+      <i class="bi bi-stethoscope me-1"></i>Indicaciones
+      <span class="badge bg-secondary ms-1">{{ inds|length }}</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a
+      class="nav-link {% if tab=='administraciones' %}active{% endif %}"
+      href="{{ url_for('paciente', pid=pac.id, tab='administraciones') }}"
+    >
+      <i class="bi bi-syringe me-1"></i>Administraciones
+      <span class="badge bg-secondary ms-1">{{ adms|length }}</span>
+    </a>
+  </li>
+</ul>
+
+{# ═══════════════════════════════════════ TAB: COMPARACIÓN
+═══════════════════════════════════════ #} {% if tab == 'comparacion' %} {% if
+not comparacion and not adms_sin_ind %}
+<div class="card text-center py-5">
+  <div class="card-body text-muted">
+    <i class="bi bi-clipboard2-x" style="font-size: 2.5rem"></i>
+    <h6 class="mt-3">No hay datos para comparar.</h6>
+    <p class="mb-0">
+      <a href="{{ url_for('cargar_pdf') }}" class="btn btn-warning mt-2">
+        <i class="bi bi-file-earmark-pdf me-1"></i>Cargar PDF
+      </a>
+    </p>
+  </div>
+</div>
+{% else %} {# Resumen #} {% set cnt_ok =
+comparacion_total|selectattr('estado','eq','ok') |list|length %} {% set cnt_inc
+= comparacion_total|selectattr('estado','eq','incompleto')|list|length %} {% set
+cnt_fal = comparacion_total|selectattr('estado','eq','falta') |list|length %} {%
+set total = comparacion_total|length %} {% set cnt_sd =
+comparacion_total|selectattr('estado','eq','sin_datos')|list|length %} {% set
+cnt_sem = comparacion_total|selectattr('frecuencia_semanal')|list|length %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left: 4px solid #198754">
+      <div style="font-size: 2rem; font-weight: 700; color: #198754">
+        {{ cnt_ok }}
+      </div>
+      <div class="text-muted small">Administradas correctamente</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left: 4px solid #fd7e14">
+      <div style="font-size: 2rem; font-weight: 700; color: #fd7e14">
+        {{ cnt_inc }}
+      </div>
+      <div class="text-muted small">
+        Dosis incompleta<br /><small>(tomas que faltan)</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left: 4px solid #dc3545">
+      <div style="font-size: 2rem; font-weight: 700; color: #dc3545">
+        {{ cnt_fal }}
+      </div>
+      <div class="text-muted small">
+        No administradas<br /><small>(0 tomas del día)</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left: 4px solid #6c757d">
+      <div style="font-size: 2rem; font-weight: 700; color: #6c757d">
+        {{ cnt_sd }}
+      </div>
+      <div class="text-muted small">
+        Frec. Lun/Mié/Vie<br />o infusión continua
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <input type="hidden" name="tab" value="comparacion" />
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold mb-1">Estado de dosis</label>
+        <select name="estado" class="form-select form-select-sm">
+          <option
+            value="todos"
+            {%
+            if
+            filtro_estado
+            in
+            ['todos']
+            %}selected{%
+            endif
+            %}
+          >
+            Todas
+          </option>
+          <option
+            value="ok"
+            {%
+            if
+            filtro_estado
+            in
+            ['ok']
+            %}selected{%
+            endif
+            %}
+          >
+            Administradas bien
+          </option>
+          <option
+            value="incompleto"
+            {%
+            if
+            filtro_estado
+            in
+            ['incompleto']
+            %}selected{%
+            endif
+            %}
+          >
+            Incompletas
+          </option>
+          <option
+            value="falta"
+            {%
+            if
+            filtro_estado
+            in
+            ['falta']
+            %}selected{%
+            endif
+            %}
+          >
+            No administradas
+          </option>
+          <option
+            value="sin_datos"
+            {%
+            if
+            filtro_estado
+            in
+            ['sin_datos']
+            %}selected{%
+            endif
+            %}
+          >
+            Frecuencia especial / sin datos
+          </option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <div class="form-check mt-4 pt-1">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            value="1"
+            id="soloSemanales"
+            name="solo_semanales"
+            {%
+            if
+            solo_semanales
+            %}checked{%
+            endif
+            %}
+          />
+          <label class="form-check-label small fw-semibold" for="soloSemanales">
+            Mostrar solo frecuencia semanal
+          </label>
+        </div>
+      </div>
+      <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-funnel me-1"></i>Filtrar
+        </button>
+        <a
+          href="{{ url_for('paciente', pid=pac.id, tab='comparacion') }}"
+          class="btn btn-outline-secondary btn-sm"
+        >
+          Limpiar
+        </a>
+      </div>
+    </form>
+    <div class="mt-2 text-muted small">
+      Mostrando {{ comparacion|length }} de {{ comparacion_total|length }}
+      registros. {% if cnt_sem %}Hay {{ cnt_sem }} con frecuencia semanal.{%
+      endif %}
+    </div>
+  </div>
+</div>
+
+{# Tabla principal de comparación #}
+<div class="card mb-4">
+  <div class="card-header fw-bold" style="background: #1a3a5c; color: #fff">
+    <i class="bi bi-table me-2"></i>Detalle por indicación y día
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th class="ps-3">Fecha</th>
+          <th>Medicamento indicado</th>
+          <th>Dosis esperada</th>
+          <th>Lo administrado</th>
+          <th>Dosis dada</th>
+          <th>Frecuencia</th>
+          <th>Médico</th>
+          <th class="text-center">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in comparacion %} {% set ind = r.indicacion %}
+        <tr class="row-{{ r.estado }}">
+          <td class="ps-3 fw-semibold text-nowrap">{{ ind.fecha }}</td>
+          <td>
+            <span class="fw-semibold">{{ ind.medicamento }}</span>
+            {% if ind.via %}<small class="text-muted ms-1"
+              >({{ ind.via|lower }})</small
+            >{% endif %} {% if ind.notas and ind.notas != ind.medicamento %}
+            <br /><small class="text-muted" style="font-size: 0.75rem"
+              >{{ ind.notas[:80] }}</small
+            >
+            {% endif %}
+          </td>
+          <td class="text-nowrap">
+            {% if r.mg_esperado is not none %} {{ r.mg_esperado|int if
+            r.mg_esperado == r.mg_esperado|int else r.mg_esperado }} mg
+            <small class="text-muted"
+              >({{ r.dosis_esperadas }}×{{ (r.mg_esperado/r.dosis_esperadas)|int
+              if r.dosis_esperadas else '' }}mg)</small
+            >
+            {% elif ind.frecuencia_horas %} {{ r.dosis_esperadas }} toma{{ 's'
+            if r.dosis_esperadas != 1 }} {% else %} — {% endif %}
+          </td>
+          <td>
+            {% if r.adms %} {% for a in r.adms %}
+            <small class="d-block">
+              <span class="text-muted">{{ a.hora }}</span>
+              {{ a.medicamento[:45] }}{% if a.medicamento|length > 45 %}…{%
+              endif %}
+            </small>
+            {% endfor %} {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-nowrap">
+            {% if r.mg_administrado is not none %} {% if r.mg_administrado > 0
+            %}
+            <strong
+              >{{ r.mg_administrado|int if r.mg_administrado ==
+              r.mg_administrado|int else r.mg_administrado }} mg</strong
+            >
+            {% if r.dosis_dadas > 1 %}
+            <small class="text-muted">({{ r.dosis_dadas }} tomas)</small>
+            {% endif %} {# Badge de equivalencia: si la dosis total coincide
+            pero las unidades son distintas #} {% if r.estado == 'ok' and
+            r.mg_esperado and r.dosis_dadas != r.dosis_esperadas %}
+            <span class="badge bg-info text-dark" title="Equivalencia de dosis"
+              >≡</span
+            >
+            {% endif %} {% else %}
+            <span class="text-muted">0 mg</span>
+            {% endif %} {% else %} {{ r.dosis_dadas }} toma{{ 's' if
+            r.dosis_dadas != 1 else '' }} {% endif %}
+          </td>
+          <td class="text-nowrap small">
+            {% if r.frecuencia_semanal %}
+            <span class="badge bg-info text-dark">Semanal</span>
+            <br /><span class="text-muted">Lun/Mié/Vie</span>
+            {% elif r.frecuencia_continua %}
+            <span class="badge bg-secondary">Continua</span>
+            {% elif ind.frecuencia_horas %} Cada {{ ind.frecuencia_horas|int if
+            ind.frecuencia_horas == ind.frecuencia_horas|int else
+            ind.frecuencia_horas }} hs {% else %} — {% endif %}
+          </td>
+          <td class="text-muted small">
+            {{ ind.medico[:25] if ind.medico else '—' }}
+          </td>
+          <td>
+            {% if r.estado == 'ok' %}
+            <span class="est-ok"
+              ><i class="bi bi-check-circle-fill me-1"></i>OK</span
+            >
+            {% if r.mg_administrado and r.mg_esperado and r.dosis_dadas !=
+            r.dosis_esperadas %}
+            <br /><small class="text-muted">Equivalencia de dosis</small>
+            {% endif %} {% elif r.estado == 'falta' %}
+            <span class="est-falta"
+              ><i class="bi bi-x-circle-fill me-1"></i>No se administró</span
+            >
+            {% if r.dosis_esperadas and r.dosis_esperadas > 1 %}
+            <br /><small class="text-danger"
+              >Faltan {{ r.dosis_esperadas }} tomas</small
+            >
+            {% else %}
+            <br /><small class="text-danger">Falta la toma del día</small>
+            {% endif %} {% elif r.estado == 'incompleto' %}
+            <span class="est-incompleto"
+              ><i class="bi bi-exclamation-circle-fill me-1"></i
+              >Incompleto</span
+            >
+            <br />
+            {% set faltan = r.dosis_esperadas - r.dosis_dadas %}
+            <small class="text-warning">
+              Se dieron {{ r.dosis_dadas }} de {{ r.dosis_esperadas }} tomas
+              (falt{{ 'a' if faltan == 1 else 'an' }} {{ faltan }})
+            </small>
+            {% if r.mg_esperado and r.mg_administrado is not none %}
+            <br /><small class="text-muted"
+              >{{ r.mg_administrado|int }} de {{ r.mg_esperado|int }} mg</small
+            >
+            {% endif %} {% else %} {# sin_datos: frecuencia especial (LMV,
+            continua) #} {% if r.frecuencia_semanal %}
+            <span class="est-sin_datos"
+              ><i class="bi bi-calendar-week me-1"></i>Lun/Mié/Vie</span
+            >
+            <br /><small class="text-muted">No administrado hoy</small>
+            {% elif r.frecuencia_continua %}
+            <span class="est-sin_datos"
+              ><i class="bi bi-hourglass-split me-1"></i>Infusión continua</span
+            >
+            <br /><small class="text-muted">Sin registro de toma</small>
+            {% else %}
+            <span class="est-sin_datos"
+              ><i class="bi bi-dash-circle me-1"></i>Sin datos</span
+            >
+            {% endif %} {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-3">
+            Sin indicaciones cargadas.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# Administraciones sin indicación #} {% if adms_sin_ind %}
+<div class="card border-warning">
+  <div class="card-header bg-warning text-dark fw-bold">
+    <i class="bi bi-exclamation-triangle me-2"></i>Administraciones sin
+    indicación médica ({{ adms_sin_ind|length }})
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Fecha</th>
+          <th>Hora</th>
+          <th>Medicamento comercial</th>
+          <th>Genérico resuelto</th>
+          <th>Dosis</th>
+          <th>Enfermero/a</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in adms_sin_ind %}
+        <tr>
+          <td class="ps-3 fw-semibold">{{ a.fecha }}</td>
+          <td>{{ a.hora or '—' }}</td>
+          <td>{{ a.medicamento }}</td>
+          <td class="text-muted">{{ a.medicamento_generico or '—' }}</td>
+          <td>
+            {% if a.dosis_mg %}{{ a.dosis_mg|int if a.dosis_mg == a.dosis_mg|int
+            else a.dosis_mg }} mg{% else %}—{% endif %}
+          </td>
+          <td class="text-muted small">{{ a.enfermero or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %} {% endif %}{# fin if not comparacion #} {#
+═══════════════════════════════════════ TAB: INDICACIONES
+═══════════════════════════════════════ #} {% elif tab == 'indicaciones' %}
+
+<div class="card">
+  <div
+    class="card-header d-flex justify-content-between align-items-center"
+    style="background: #1a3a5c; color: #fff"
+  >
+    <span class="fw-bold"
+      ><i class="bi bi-stethoscope me-2"></i>Indicaciones del médico</span
+    >
+    <button
+      class="btn btn-light btn-sm"
+      data-bs-toggle="collapse"
+      data-bs-target="#formNuevaInd"
+    >
+      <i class="bi bi-plus-lg me-1"></i>Agregar
+    </button>
+  </div>
+
+  <div class="collapse" id="formNuevaInd">
+    <div class="card-body border-bottom bg-light">
+      <form
+        method="POST"
+        action="{{ url_for('nueva_indicacion', pid=pac.id) }}"
+      >
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold mb-1">Fecha *</label>
+            <input
+              type="date"
+              name="fecha"
+              class="form-control form-control-sm"
+              required
+            />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold mb-1"
+              >Medicamento *</label
+            >
+            <input
+              type="text"
+              name="medicamento"
+              class="form-control form-control-sm"
+              required
+              placeholder="Ej: Amoxicilina"
+            />
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small fw-semibold mb-1">Dosis (mg)</label>
+            <input
+              type="number"
+              name="dosis_mg"
+              class="form-control form-control-sm"
+              step="any"
+              min="0"
+              placeholder="500"
+            />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold mb-1"
+              >Frecuencia (cada X hs)</label
+            >
+            <input
+              type="number"
+              name="frecuencia_horas"
+              class="form-control form-control-sm"
+              step="any"
+              min="0"
+              placeholder="8"
+            />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold mb-1">Médico</label>
+            <input
+              type="text"
+              name="medico"
+              class="form-control form-control-sm"
+              placeholder="Apellido"
+            />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold mb-1">Notas</label>
+            <input
+              type="text"
+              name="notas"
+              class="form-control form-control-sm"
+            />
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-save me-1"></i>Guardar
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              data-bs-toggle="collapse"
+              data-bs-target="#formNuevaInd"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if not inds %}
+  <div class="card-body text-center text-muted py-4">
+    <i class="bi bi-clipboard2-x" style="font-size: 2rem"></i>
+    <p class="mt-2 mb-0">
+      No hay indicaciones. Cargá el PDF o agregá manualmente.
+    </p>
+  </div>
+  {% else %}
+  <div class="card-body p-0">
+    <table class="table table-hover table-sm mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Fecha</th>
+          <th>Medicamento</th>
+          <th>Dosis</th>
+          <th>Frecuencia</th>
+          <th>Vía</th>
+          <th>Médico</th>
+          <th>Notas</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ind in inds %}
+        <tr>
+          <td class="ps-3 text-nowrap">{{ ind.fecha }}</td>
+          <td class="fw-semibold">{{ ind.medicamento }}</td>
+          <td>
+            {% if ind.dosis_mg %}{{ ind.dosis_mg|int if ind.dosis_mg ==
+            ind.dosis_mg|int else ind.dosis_mg }} mg{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if ind.frecuencia_horas %}c/{{ ind.frecuencia_horas|int if
+            ind.frecuencia_horas == ind.frecuencia_horas|int else
+            ind.frecuencia_horas }} hs{% else %}—{% endif %}
+          </td>
+          <td class="text-muted small">{{ ind.via or '—' }}</td>
+          <td class="text-muted small">
+            {{ ind.medico[:20] if ind.medico else '—' }}
+          </td>
+          <td
+            class="text-muted small"
+            style="max-width: 180px; overflow: hidden; white-space: nowrap"
+          >
+            {{ ind.notas[:60] if ind.notas else '' }}
+          </td>
+          <td class="text-end pe-2">
+            <button
+              class="btn btn-sm btn-outline-secondary me-1"
+              data-bs-toggle="modal"
+              data-bs-target="#modalEditInd{{ ind.id }}"
+            >
+              <i class="bi bi-pencil"></i>
+            </button>
+            <form
+              method="POST"
+              action="{{ url_for('eliminar_indicacion', pid=pac.id, iid=ind.id) }}"
+              class="d-inline"
+              onsubmit="return confirm('¿Eliminar?');"
+            >
+              <button class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% for ind in inds %}
+<div class="modal fade" id="modalEditInd{{ ind.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #1a3a5c; color: #fff">
+        <h6 class="modal-title fw-bold">Editar indicación</h6>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <form
+        method="POST"
+        action="{{ url_for('editar_indicacion', pid=pac.id, iid=ind.id) }}"
+      >
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Fecha</label>
+              <input
+                type="date"
+                name="fecha"
+                class="form-control form-control-sm"
+                value="{{ date_to_input(ind.fecha) }}"
+              />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Medicamento *</label>
+              <input
+                type="text"
+                name="medicamento"
+                class="form-control form-control-sm"
+                value="{{ ind.medicamento }}"
+                required
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Dosis (mg)</label>
+              <input
+                type="number"
+                name="dosis_mg"
+                class="form-control form-control-sm"
+                step="any"
+                value="{{ ind.dosis_mg or '' }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold"
+                >Frecuencia (hs)</label
+              >
+              <input
+                type="number"
+                name="frecuencia_horas"
+                class="form-control form-control-sm"
+                step="any"
+                value="{{ ind.frecuencia_horas or '' }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Vía</label>
+              <input
+                type="text"
+                name="via"
+                class="form-control form-control-sm"
+                value="{{ ind.via or '' }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Médico</label>
+              <input
+                type="text"
+                name="medico"
+                class="form-control form-control-sm"
+                value="{{ ind.medico or '' }}"
+              />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Notas</label>
+              <input
+                type="text"
+                name="notas"
+                class="form-control form-control-sm"
+                value="{{ ind.notas or '' }}"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            data-bs-dismiss="modal"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-save me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %} {# ═══════════════════════════════════════ TAB: ADMINISTRACIONES
+═══════════════════════════════════════ #} {% elif tab == 'administraciones' %}
+
+<div class="card">
+  <div
+    class="card-header d-flex justify-content-between align-items-center"
+    style="background: #1a3a5c; color: #fff"
+  >
+    <span class="fw-bold"
+      ><i class="bi bi-syringe me-2"></i>Medicamentos administrados</span
+    >
+    <button
+      class="btn btn-light btn-sm"
+      data-bs-toggle="collapse"
+      data-bs-target="#formNuevaAdm"
+    >
+      <i class="bi bi-plus-lg me-1"></i>Agregar
+    </button>
+  </div>
+
+  <div class="collapse" id="formNuevaAdm">
+    <div class="card-body border-bottom bg-light">
+      <form
+        method="POST"
+        action="{{ url_for('nueva_administracion', pid=pac.id) }}"
+      >
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold mb-1">Fecha *</label>
+            <input
+              type="date"
+              name="fecha"
+              class="form-control form-control-sm"
+              required
+            />
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small fw-semibold mb-1">Hora</label>
+            <input
+              type="time"
+              name="hora"
+              class="form-control form-control-sm"
+            />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold mb-1"
+              >Medicamento (comercial) *</label
+            >
+            <input
+              type="text"
+              name="medicamento"
+              class="form-control form-control-sm"
+              required
+            />
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small fw-semibold mb-1">Dosis (mg)</label>
+            <input
+              type="number"
+              name="dosis_mg"
+              class="form-control form-control-sm"
+              step="any"
+              min="0"
+            />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold mb-1">Enfermero/a</label>
+            <input
+              type="text"
+              name="enfermero"
+              class="form-control form-control-sm"
+            />
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-save me-1"></i>Guardar
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              data-bs-toggle="collapse"
+              data-bs-target="#formNuevaAdm"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if not adms %}
+  <div class="card-body text-center text-muted py-4">
+    <i class="bi bi-syringe" style="font-size: 2rem"></i>
+    <p class="mt-2 mb-0">No hay administraciones. Cargá el PDF.</p>
+  </div>
+  {% else %}
+  <div class="card-body p-0">
+    <table class="table table-hover table-sm mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Fecha</th>
+          <th>Hora</th>
+          <th>Medicamento comercial</th>
+          <th>Genérico resuelto</th>
+          <th>Dosis</th>
+          <th>Enfermero/a</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for adm in adms %}
+        <tr>
+          <td class="ps-3 text-nowrap">{{ adm.fecha }}</td>
+          <td>{{ adm.hora or '—' }}</td>
+          <td>
+            {{ adm.medicamento[:60] }}{% if adm.medicamento|length > 60 %}…{%
+            endif %}
+          </td>
+          <td class="text-muted">{{ adm.medicamento_generico or '—' }}</td>
+          <td>
+            {% if adm.dosis_mg %}{{ adm.dosis_mg|int if adm.dosis_mg ==
+            adm.dosis_mg|int else adm.dosis_mg }} mg{% else %}—{% endif %}
+          </td>
+          <td class="text-muted small">
+            {{ adm.enfermero[:25] if adm.enfermero else '—' }}
+          </td>
+          <td class="text-end pe-2">
+            <button
+              class="btn btn-sm btn-outline-secondary me-1"
+              data-bs-toggle="modal"
+              data-bs-target="#modalEditAdm{{ adm.id }}"
+            >
+              <i class="bi bi-pencil"></i>
+            </button>
+            <form
+              method="POST"
+              action="{{ url_for('eliminar_administracion', pid=pac.id, aid=adm.id) }}"
+              class="d-inline"
+              onsubmit="return confirm('¿Eliminar?');"
+            >
+              <button class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% for adm in adms %}
+<div class="modal fade" id="modalEditAdm{{ adm.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #1a3a5c; color: #fff">
+        <h6 class="modal-title fw-bold">Editar administración</h6>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <form
+        method="POST"
+        action="{{ url_for('editar_administracion', pid=pac.id, aid=adm.id) }}"
+      >
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Fecha *</label>
+              <input
+                type="date"
+                name="fecha"
+                class="form-control form-control-sm"
+                value="{{ date_to_input(adm.fecha) }}"
+                required
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Hora</label>
+              <input
+                type="time"
+                name="hora"
+                class="form-control form-control-sm"
+                value="{{ adm.hora or '' }}"
+              />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold"
+                >Medicamento (comercial) *</label
+              >
+              <input
+                type="text"
+                name="medicamento"
+                class="form-control form-control-sm"
+                value="{{ adm.medicamento }}"
+                required
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Dosis (mg)</label>
+              <input
+                type="number"
+                name="dosis_mg"
+                class="form-control form-control-sm"
+                step="any"
+                value="{{ adm.dosis_mg or '' }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Enfermero/a</label>
+              <input
+                type="text"
+                name="enfermero"
+                class="form-control form-control-sm"
+                value="{{ adm.enfermero or '' }}"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            data-bs-dismiss="modal"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-save me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %} {% endif %}{# fin tabs #} {# ── MODAL EDITAR PACIENTE ── #}
+<div class="modal fade" id="modalEditarPac" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #1a3a5c; color: #fff">
+        <h6 class="modal-title fw-bold">Editar datos del paciente</h6>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <form method="POST" action="{{ url_for('editar_paciente', pid=pac.id) }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Apellido *</label>
+              <input
+                type="text"
+                name="apellido"
+                class="form-control form-control-sm"
+                value="{{ pac.apellido }}"
+                required
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Nombre *</label>
+              <input
+                type="text"
+                name="nombre"
+                class="form-control form-control-sm"
+                value="{{ pac.nombre }}"
+                required
+              />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">DNI</label>
+              <input
+                type="text"
+                name="dni"
+                class="form-control form-control-sm"
+                value="{{ pac.dni or '' }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Fecha ingreso</label>
+              <input
+                type="date"
+                name="fecha_ingreso"
+                class="form-control form-control-sm"
+                value="{{ date_to_input(pac.fecha_ingreso) }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Fecha egreso</label>
+              <input
+                type="date"
+                name="fecha_egreso"
+                class="form-control form-control-sm"
+                value="{{ date_to_input(pac.fecha_egreso) }}"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            data-bs-dismiss="modal"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-save me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

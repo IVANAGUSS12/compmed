@@ -354,3 +354,247 @@ def parse_facturados(pdf_path, callback=None, zoom=1.8, use_ocr_fallback=True):
 
     doc.close()
     return results
+
+
+# ── Parser unificado de internacion (indicaciones + administraciones) ───────
+
+def _extraer_droga_indicacion_internacion(linea):
+    """
+    Parsea una linea de indicacion farmacologica y devuelve:
+    (medicamento, dosis_mg, frecuencia_horas, via, nota_original)
+    """
+    orig = linea.strip()
+    linea = re.sub(r'^EN AYUNAS:\s*', '', orig, flags=re.I).strip()
+    linea = re.sub(r'\.\s*$', '', linea).strip()
+
+    freq = None
+    m_cada = re.search(r'CADA:\s*(\d+(?:[.,]\d+)?)\s*H', linea, re.I)
+    if m_cada:
+        freq = float(m_cada.group(1).replace(',', '.'))
+    elif re.search(r'A LAS\s+\d{1,2}:\d{2}', linea, re.I):
+        freq = 24.0
+
+    dosis_mg = None
+    m_mg = re.search(r'(\d+(?:[.,]\d+)?)\s*MG\b', linea, re.I)
+    if m_mg:
+        dosis_mg = float(m_mg.group(1).replace(',', '.'))
+    else:
+        m_ui = re.search(r'(\d+(?:[.,]\d+)?)\s*UI\b', linea, re.I)
+        if m_ui:
+            dosis_mg = float(m_ui.group(1).replace(',', '.'))
+
+    via = None
+    for v in ('INTRAVENOSA', 'ORAL', 'SUBCUTANEA', 'INTRAMUSCULAR', 'TOPICA', 'NASAL'):
+        if v.lower() in linea.lower():
+            via = v
+            break
+
+    m_pos = re.search(r'\b\d+(?:[.,/]\d+)?\s*(?:MG|UI|MEQ|GR|ML)\b', linea, re.I)
+    if m_pos:
+        droga = linea[:m_pos.start()].strip().rstrip(',').strip()
+    else:
+        droga = re.split(
+            r'\s+(?:CADA|ORAL|INTRAVENOSA|SUBCUTANEA|AMPOLLA|COMPRIMIDO|CAPSULA|FRASCO|INFUSION)\b',
+            linea,
+            1,
+            flags=re.I,
+        )[0].strip()
+
+    droga = re.sub(r'\s+', ' ', droga).strip()
+
+    if re.search(r'LUNES|MIERCOLES|VIERNES|LMV', linea, re.I):
+        freq = None
+    elif re.search(r'CONTINUA', linea, re.I):
+        freq = None
+
+    return droga, dosis_mg, freq, via, orig
+
+
+def _extraer_dosis_comercial_internacion(nombre):
+    """Extrae mg/UI y cantidad final de un nombre comercial."""
+    s = nombre.strip().upper()
+    m_qty = re.search(r'X\s+(\d+)\s*$', s)
+    qty = int(m_qty.group(1)) if m_qty else 1
+
+    m_mg = re.search(r'(\d+(?:[.,]\d+)?)\s*MG\b', s)
+    if m_mg:
+        mg = float(m_mg.group(1).replace(',', '.'))
+        return mg, qty, mg * qty
+
+    m_ui = re.search(r'(\d+(?:[.,]\d+)?)\s*UI\b', s)
+    if m_ui:
+        ui = float(m_ui.group(1).replace(',', '.'))
+        return ui, qty, ui * qty
+
+    return None, qty, None
+
+
+def parsear_pdf_internacion(pdf_path, callback=None, zoom=1.8, use_ocr_fallback=True):
+    """
+    Parsea un PDF de internacion y devuelve:
+    (paciente_info, indicaciones, administraciones)
+    """
+    doc = fitz.open(pdf_path)
+    total = len(doc)
+
+    all_lines = []
+    for pi in range(total):
+        if callback:
+            callback(pi + 1, total)
+        page = doc[pi]
+        all_lines.extend(_page_lines(page, zoom=zoom, use_ocr_fallback=use_ocr_fallback))
+    doc.close()
+
+    paciente_info = {'nombre': '', 'apellido': '', 'dni': ''}
+    for i, line in enumerate(all_lines[:60]):
+        line = line.strip()
+        if line == 'Paciente:' and i + 1 < len(all_lines):
+            nombre_completo = all_lines[i + 1].strip()
+            partes = nombre_completo.split(',', 1)
+            paciente_info['apellido'] = partes[0].strip()
+            paciente_info['nombre'] = partes[1].strip() if len(partes) > 1 else ''
+        elif line == 'DNI:' and i + 1 < len(all_lines):
+            paciente_info['dni'] = all_lines[i + 1].strip()
+
+    indicaciones = []
+    administraciones = []
+
+    fecha_actual = None
+    seccion = None
+    medico_actual = None
+
+    skip = {
+        'INTERNACION', 'Paciente:', 'DNI:', 'Fecha Nac.:', 'Edad:', 'Sexo:',
+        'Nro. HC Anterior:', 'INDICACIONES', 'INDICACIONES ENFERMERIA',
+        'INDICACIONES NUTRICION', 'INDICACIONES FARMACOLOGICAS',
+        'MEDICAMENTOS ADMINISTRADOS', 'NEFROPROTECTOR',
+    }
+
+    i = 0
+    while i < len(all_lines):
+        line = all_lines[i].strip()
+
+        if not line or 'Usuario Impresi' in line or 'Fecha Impresi' in line or 'Pagina' in line or 'Página' in line:
+            i += 1
+            continue
+
+        if line == 'INTERNACION':
+            seccion = None
+            i += 1
+            continue
+
+        if line in skip or line in ('CABECERA A 30°', 'CABECERA A 30\u00b0'):
+            if line == 'INDICACIONES FARMACOLOGICAS':
+                seccion = 'ind'
+            elif line == 'MEDICAMENTOS ADMINISTRADOS':
+                seccion = 'adm'
+            elif line in ('INDICACIONES ENFERMERIA', 'INDICACIONES NUTRICION'):
+                seccion = None
+            i += 1
+            continue
+
+        if re.match(r'^\d{7,9}$', line):
+            i += 1
+            continue
+        if re.match(r'^\d{2}/\d{2}/\d{4}$', line) and not fecha_actual:
+            i += 1
+            continue
+        if line in ('MASCULINO', 'FEMENINO'):
+            i += 1
+            continue
+
+        m_fecha = re.match(r'^(\d{2})/(\d{2})/(\d{2,4})$', line)
+        if m_fecha:
+            d, mo, y = m_fecha.groups()
+            if len(y) == 2:
+                y = '20' + y
+            fecha_actual = f'{d}/{mo}/{y}'
+            seccion = None
+            medico_actual = None
+            i += 1
+            continue
+
+        if 'INDICACIONES FARMACOLOGICAS' in line:
+            seccion = 'ind'
+            i += 1
+            continue
+        if 'MEDICAMENTOS ADMINISTRADOS' in line:
+            seccion = 'adm'
+            i += 1
+            continue
+        if re.match(r'^INDICACIONES\b', line):
+            if 'FARMACOLOGICAS' not in line:
+                seccion = None
+            i += 1
+            continue
+
+        if not fecha_actual:
+            i += 1
+            continue
+
+        if seccion == 'ind':
+            m_doc = re.match(r'^\d{1,2}:\d{2}\s+(.+?)\s*\[M\.N\.:', line)
+            if m_doc:
+                medico_actual = m_doc.group(1).strip()
+                i += 1
+                continue
+
+            if re.match(r'^CONTROL\b', line, re.I):
+                i += 1
+                continue
+            if re.match(r'^\d+$', line) or re.match(r'^\d{2}/\d{2}', line):
+                i += 1
+                continue
+
+            drug_markers = re.compile(
+                r'\b(?:MG|UI|MEQ|GR|ML|ORAL|INTRAVENOSA|SUBCUTANEA|INTRAMUSCULAR|'
+                r'AMPOLLA|COMPRIMIDO|CAPSULA|FRASCO|INFUSION|CADA|JERINGA)\b',
+                re.I,
+            )
+            if len(line) >= 5 and drug_markers.search(line):
+                droga, dosis_mg, freq, via, notas = _extraer_droga_indicacion_internacion(line)
+                if droga and len(droga) >= 3:
+                    indicaciones.append(
+                        {
+                            'fecha': fecha_actual,
+                            'medico': medico_actual or '',
+                            'medicamento': droga,
+                            'dosis_mg': dosis_mg,
+                            'frecuencia_horas': freq,
+                            'via': via or '',
+                            'notas': notas,
+                        }
+                    )
+
+        elif seccion == 'adm':
+            m_adm = re.match(r'^(\d{1,2}:\d{2})\s*-\s*(.+)$', line)
+            if m_adm:
+                hora = m_adm.group(1)
+                enfermero = m_adm.group(2).strip()
+                j = i + 1
+                while j < len(all_lines) and not all_lines[j].strip():
+                    j += 1
+                if j < len(all_lines):
+                    drug_line = all_lines[j].strip()
+                    if (
+                        drug_line
+                        and not re.match(r'^\d{1,2}:\d{2}', drug_line)
+                        and drug_line not in skip
+                        and 'Usuario Impresi' not in drug_line
+                    ):
+                        _, _, total_mg = _extraer_dosis_comercial_internacion(drug_line)
+                        administraciones.append(
+                            {
+                                'fecha': fecha_actual,
+                                'hora': hora,
+                                'enfermero': enfermero,
+                                'medicamento': drug_line,
+                                'dosis_mg': total_mg,
+                            }
+                        )
+                        i = j + 1
+                        continue
+
+        i += 1
+
+    return paciente_info, indicaciones, administraciones

@@ -1,16 +1,33 @@
 # MedControl
 
-Aplicacion Flask para auditoria de medicamentos:
+Aplicacion Flask para auditoria de medicamentos.
 
-- Carga de paciente.
-- Importacion de PDFs (indicaciones + facturados).
-- Equivalencias de nombres comerciales a facturados.
-- Control cruzado y exportaciones (Excel/PDF).
+Incluye:
+
+- Carga y gestion de pacientes.
+- Importacion de PDF de internacion (indicaciones + administraciones).
+- Comparacion de dosis (ok, incompleto, falta, sin_datos).
+- Filtros por estado y frecuencia semanal.
+- Tests unitarios de la logica critica de comparacion.
+
+## Arquitectura
+
+La app esta separada por responsabilidades:
+
+- `app.py`: capa web Flask (rutas y orquestacion).
+- `extensions.py`: inicializacion de extensiones (`SQLAlchemy`).
+- `models.py`: entidades y tabla de equivalencias por defecto.
+- `services/date_utils.py`: normalizacion y parseo de fechas.
+- `services/equivalencias.py`: resolucion de nombre comercial -> generico.
+- `services/comparacion.py`: reglas de negocio de comparacion de dosis.
+- `services/importacion.py`: flujo de importacion de PDF a entidades.
+- `utils/pdf_parser.py`: parser unificado de PDF (`parsear_pdf_internacion`).
+- `tests/test_comparacion_service.py`: tests unitarios de negocio.
 
 ## Requisitos
 
 - Windows 10/11 (o Linux/macOS con ajustes de script)
-- Python 3.11+ (probado con 3.14)
+- Python 3.11+
 - Git
 
 ## Inicio rapido (Windows)
@@ -38,16 +55,24 @@ python app.py
 ## Notas importantes
 
 - La primera vez que se usa OCR (`easyocr`) puede tardar mas porque descarga/carga modelos.
-- La base SQLite se guarda en `data/medcontrol.db`.
+- La base SQLite se guarda en `data/medcontrol_v2.db`.
 - `uploads/` y la DB estan ignorados por Git para no subir datos sensibles.
 
-## Estructura principal
+## Tests
 
-- `app.py`: backend Flask y rutas.
-- `utils/pdf_parser.py`: parsing OCR de PDFs.
-- `utils/excel_gen.py`: exportacion Excel.
-- `templates/`: vistas HTML.
-- `iniciar.bat`: bootstrap para Windows.
+Ejecutar:
+
+```powershell
+pytest
+```
+
+Los tests actuales cubren los casos criticos de `comparar_indicaciones_administraciones`:
+
+- frecuencia c/48 hs,
+- LMV (semanal),
+- infusion continua,
+- equivalencia de mg (2x25 = 50),
+- dosis incompleta por conteo.
 
 ## Preparado para GitHub
 
